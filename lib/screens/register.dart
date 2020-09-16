@@ -126,7 +126,7 @@ class _RegisterPageState extends State<RegisterPage>
   // Send user data to api.
   uploadImage(File imageFile, name, context) async {
     FormData data = FormData.fromMap({
-      "filename": await MultipartFile.fromFile(
+      "image": await MultipartFile.fromFile(
         imageFile.path,
       ),
       "username": name,
