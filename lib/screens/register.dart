@@ -9,9 +9,9 @@ import 'package:camera/camera.dart';
 import 'package:face_recognition/screens/landing.dart';
 import 'package:face_recognition/style.dart';
 import 'package:face_recognition/utils/global.dart';
+import 'package:face_recognition/widget/CirclePainter.dart';
 import 'package:face_recognition/widgets/circle.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -20,12 +20,25 @@ import '../utils/Constant.dart' as constant;
 
 class RegisterPage extends StatefulWidget {
   static final String id = 'RegisterPage';
+  const RegisterPage({
+    Key key,
+    this.size = 80.0,
+//    this.color = Colors.grey,
+    this.onPressed,
+    @required this.child,
+  }) : super(key: key);
 
+  final double size;
+//   Color color;
+  final Widget child;
+  final VoidCallback onPressed;
   @override
   _RegisterPageState createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _RegisterPageState extends State<RegisterPage>
+    with TickerProviderStateMixin {
+  AnimationController _controller;
   /* ********************* Variables **************************** */
   bool isRetryed = false;
   File _imageFile;
@@ -40,6 +53,7 @@ class _RegisterPageState extends State<RegisterPage> {
   bool isCameraReady = false;
   bool showCapturedPhoto = false;
   Future<void> _initializeControllerFuture;
+  Color color = Colors.grey;
 
   /* ********************* Controller **************************** */
   CameraController _cameraController;
@@ -56,6 +70,10 @@ class _RegisterPageState extends State<RegisterPage> {
   void initState() {
     super.initState();
     _initializeCamera();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat();
   }
 
   Future<void> _initializeCamera() async {
@@ -129,6 +147,10 @@ class _RegisterPageState extends State<RegisterPage> {
     // request.fields.addAll(data);
     request.headers.addAll(data);
     request.fields['username'] = name;
+    setState(() {
+      isLoading = false;
+      color = Colors.blue;
+    });
     // send
     try {
       constant.progressHub("Processing ... ", context);
@@ -137,12 +159,19 @@ class _RegisterPageState extends State<RegisterPage> {
         constant.closeDialog(context);
         setState(() {
           isLoading = false;
+//          color = Colors.red;
         });
         response.stream.transform(utf8.decoder).listen((value) {
           bool status = json.decode(value)['status'];
           if (status == false) {
             ErrorDialog("${json.decode(value)['message']}", "Error", context);
+            setState(() {
+              color = Colors.red;
+            });
           } else {
+            setState(() {
+              color = Colors.orange;
+            });
             constant.succesDialog(
                 "Registration successful , please try to login", "", context);
           }
@@ -150,6 +179,9 @@ class _RegisterPageState extends State<RegisterPage> {
           print('200 RESPONSE : $value');
         });
       } else {
+        setState(() {
+          color = Colors.red;
+        });
         ErrorDialog("Processing Error please retry", "Error", context);
         print("OTHER  response : ${response}");
         response.stream.transform(utf8.decoder).listen((value) {
@@ -158,6 +190,9 @@ class _RegisterPageState extends State<RegisterPage> {
         });
       }
     } catch (e) {
+      setState(() {
+        color = Colors.red;
+      });
       print('ERROR RESPONSE : $e');
       ErrorDialog("${e.toString()}", "Error", context);
     } finally {
@@ -216,6 +251,7 @@ class _RegisterPageState extends State<RegisterPage> {
             _start = 5;
             isRetryed = true;
             isLoading = true;
+            color = Colors.grey;
           });
         })
       ..show();
@@ -240,6 +276,7 @@ class _RegisterPageState extends State<RegisterPage> {
         btnCancelOnPress: () {
           startTimer(context);
           isLoading = true;
+          color = Colors.grey;
         })
       ..show();
   }
@@ -248,6 +285,31 @@ class _RegisterPageState extends State<RegisterPage> {
   void dispose() {
     _cameraController?.dispose();
     super.dispose();
+  }
+
+  Widget myCamera() {
+    return Center(
+        child: Container(
+      height: 200,
+      width: 200,
+      child: ClipOval(
+        child: CircleAvatar(
+          child: Stack(
+            children: [
+              Transform.scale(
+                scale: 1 / _cameraController.value.aspectRatio,
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: _cameraController.value.aspectRatio,
+                    child: CameraPreview(_cameraController),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
   }
 
 //////////////////////////////////////////////////SCREEN
@@ -469,59 +531,72 @@ class _RegisterPageState extends State<RegisterPage> {
               Column(
                 children: [
                   Center(
-                    child: Container(
-                      height: 200,
-                      width: 200,
-                      child: ClipOval(
-                        child: CircleAvatar(
-                          child: Stack(
-                            children: [
-                              Transform.scale(
-                                scale: 1 / _cameraController.value.aspectRatio,
-                                child: Center(
-                                  child: AspectRatio(
-                                    aspectRatio:
-                                        _cameraController.value.aspectRatio,
-                                    child: CameraPreview(_cameraController),
-                                  ),
-                                ),
-                              ),
-                              Visibility(
-                                child: Center(
-                                  child: Container(
-                                      child: SpinKitDualRing(
-                                    color: greenColor,
-                                    size: 195.0,
-                                  )),
-                                ),
-                                visible: _start < 1 ? isLoading : false,
-                              ),
-                              Visibility(
-                                child: Center(
-                                  child: Container(
-                                      child: SpinKitDualRing(
-                                    color: greenColor,
-                                    size: 170.0,
-                                  )),
-                                ),
-                                visible: _start < 1 ? isLoading : false,
-                              ),
-                              Visibility(
-                                child: Center(
-                                  child: Container(
-                                      child: SpinKitDualRing(
-                                    color: greenColor,
-                                    size: 120.0,
-                                  )),
-                                ),
-                                visible: _start < 1 ? isLoading : false,
-                              )
-                            ],
-                          ),
-                        ),
+                    child: CustomPaint(
+                      painter: CirclePainter(
+                        _controller,
+                        color: color,
+                      ),
+                      child: SizedBox(
+                        width: widget.size * 4.125,
+                        height: widget.size * 4.125,
+                        child: myCamera(),
                       ),
                     ),
                   ),
+//                  Center(
+//                    child: Container(
+//                      height: 200,
+//                      width: 200,
+//                      child: ClipOval(
+//                        child: CircleAvatar(
+//                          child: Stack(
+//                            children: [
+//                              Transform.scale(
+//                                scale: 1 / _cameraController.value.aspectRatio,
+//                                child: Center(
+//                                  child: AspectRatio(
+//                                    aspectRatio:
+//                                        _cameraController.value.aspectRatio,
+//                                    child: CameraPreview(_cameraController),
+//                                  ),
+//                                ),
+//                              ),
+//                              Visibility(
+//                                child: Center(
+//                                  child: Container(
+//                                      child: SpinKitDualRing(
+//                                    color: greenColor,
+//                                    size: 195.0,
+//                                  )),
+//                                ),
+//                                visible: _start < 1 ? isLoading : false,
+//                              ),
+//                              Visibility(
+//                                child: Center(
+//                                  child: Container(
+//                                      child: SpinKitDualRing(
+//                                    color: greenColor,
+//                                    size: 170.0,
+//                                  )),
+//                                ),
+//                                visible: _start < 1 ? isLoading : false,
+//                              ),
+//                              Visibility(
+//                                child: Center(
+//                                  child: Container(
+//                                      child: SpinKitDualRing(
+//                                    color: greenColor,
+//                                    size: 120.0,
+//                                  )),
+//                                ),
+//                                visible: _start < 1 ? isLoading : false,
+//                              )
+//                            ],
+//                          ),
+//                        ),
+//                      ),
+//                    ),
+//                  ),
                   SizedBox(
                     height: 40,
                   ),

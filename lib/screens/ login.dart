@@ -1,19 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:animations/animations.dart';
 import 'package:async/async.dart';
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:camera/camera.dart';
 import 'package:face_recognition/style.dart';
 import 'package:face_recognition/utils/global.dart';
+import 'package:face_recognition/widget/CirclePainter.dart';
 import 'package:face_recognition/widgets/circle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+
 import '../utils/Constant.dart' as constant;
 import 'landing.dart';
 
@@ -21,12 +23,12 @@ class LoginPage extends StatefulWidget {
   const LoginPage({
     Key key,
     this.size = 80.0,
-    this.color = Colors.red,
+//    this.color = Colors.red,
     this.onPressed,
     @required this.child,
   }) : super(key: key);
   final double size;
-  final Color color;
+//  final Color color;
   final Widget child;
   final VoidCallback onPressed;
   static final String id = 'LoginPage';
@@ -36,6 +38,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
+  AnimationController _controller;
   /* ********************* Variables **************************** */
   bool nextCanBeCliked = true;
   bool backCanBeCliked = false;
@@ -51,6 +54,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   bool _isNameValid = false;
   bool isCameraReady = false;
   bool showCapturedPhoto = false;
+  Color color = Colors.grey;
 
   // For animation pakages.
   SharedAxisTransitionType _transitionType =
@@ -59,7 +63,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   CameraController _cameraController;
 
   CameraLensDirection _direction = CameraLensDirection.front;
-  AnimationController _controller;
 
   /* ********************* Methodes **************************** */
 
@@ -132,6 +135,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     // multipart that takes file
     var multipartFile = new http.MultipartFile('image', stream, length,
         filename: basename(imageFile.path));
+    setState(() {
+      isLoading = false;
+      color = Colors.blue;
+    });
     // add file to multipart
     request.files.add(multipartFile);
 
@@ -152,7 +159,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           String name = json.decode(value)['name'];
           if (status == false) {
             ErrorDialog("${json.decode(value)['message']}", "Error", context);
+            setState(() {
+              color = Colors.red;
+            });
           } else {
+            setState(() {
+              color = Colors.orange;
+            });
             constant.succesDialog(
                 "Hi Welcome Mr(s) ${name} , nice to meet you , Your are SuccessFul Authenticated",
                 "Auth Succesful",
@@ -161,6 +174,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           print('200 RESPONSE : $value');
         });
       } else {
+        setState(() {
+          color = Colors.red;
+        });
         ErrorDialog("Processing Error please retry", "Error", context);
         print("OTHER  response : ${response}");
         response.stream.transform(utf8.decoder).listen((value) {
@@ -169,6 +185,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         });
       }
     } catch (e) {
+      setState(() {
+        color = Colors.red;
+      });
       print('ERROR RESPONSE : $e');
     } finally {
       constant.closeDialog(context);
@@ -241,6 +260,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             _start = 5;
             isRetryed = true;
             isLoading = true;
+            color = Colors.grey;
           });
         })
       ..show();
@@ -258,6 +278,33 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 ////    _timer.cancel();
 //    super.dispose();
 //  }
+
+  Widget myCamera() {
+    return Center(
+        child: Container(
+      height: 200,
+      width: 200,
+      child: ClipOval(
+        child: CircleAvatar(
+          child: Stack(
+            children: [
+              Transform.scale(
+                scale: 1 / _cameraController.value.aspectRatio,
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: _cameraController.value.aspectRatio,
+                    child: CameraPreview(_cameraController),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
+  }
+
+  ///////////////////SCREENN
 
   @override
   Widget build(BuildContext context) {
@@ -450,56 +497,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               Column(
                 children: [
                   Center(
-                    child: Container(
-                      height: 200,
-                      width: 200,
-                      child: ClipOval(
-                        child: CircleAvatar(
-                          child: Stack(
-                            children: [
-                              Transform.scale(
-                                scale: 1 / _cameraController.value.aspectRatio,
-                                child: Center(
-                                  child: AspectRatio(
-                                    aspectRatio:
-                                        _cameraController.value.aspectRatio,
-                                    child: CameraPreview(_cameraController),
-                                  ),
-                                ),
-                              ),
-                              Visibility(
-                                child: Center(
-                                  child: Container(
-                                      child: SpinKitDualRing(
-                                    color: greenColor,
-                                    size: 195.0,
-                                  )),
-                                ),
-                                visible: _start < 1 ? isLoading : false,
-                              ),
-                              Visibility(
-                                child: Center(
-                                  child: Container(
-                                      child: SpinKitDualRing(
-                                    color: greenColor,
-                                    size: 170.0,
-                                  )),
-                                ),
-                                visible: _start < 1 ? isLoading : false,
-                              ),
-                              Visibility(
-                                child: Center(
-                                  child: Container(
-                                      child: SpinKitDualRing(
-                                    color: greenColor,
-                                    size: 120.0,
-                                  )),
-                                ),
-                                visible: _start < 1 ? isLoading : false,
-                              ),
-                            ],
-                          ),
-                        ),
+                    child: CustomPaint(
+                      painter: CirclePainter(
+                        _controller,
+                        color: color,
+                      ),
+                      child: SizedBox(
+                        width: widget.size * 4.125,
+                        height: widget.size * 4.125,
+                        child: myCamera(),
                       ),
                     ),
                   ),
