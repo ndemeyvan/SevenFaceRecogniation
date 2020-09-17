@@ -1,1 +1,1 @@
-const baseUrl = "https://48f77ce8ba09.ngrok.io/api";
+const baseUrl = "http://46.101.119.210/api";

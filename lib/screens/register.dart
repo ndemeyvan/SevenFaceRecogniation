@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:animations/animations.dart';
+import 'package:async/async.dart';
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:camera/camera.dart';
 import 'package:dio/dio.dart';
@@ -11,6 +13,8 @@ import 'package:face_recognition/utils/global.dart';
 import 'package:face_recognition/widget/CirclePainter.dart';
 import 'package:face_recognition/widgets/circle.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -18,6 +22,7 @@ import '../utils/Constant.dart' as constant;
 
 class RegisterPage extends StatefulWidget {
   static final String id = 'RegisterPage';
+
   const RegisterPage({
     Key key,
     this.size = 80.0,
@@ -27,9 +32,11 @@ class RegisterPage extends StatefulWidget {
   }) : super(key: key);
 
   final double size;
+
 //   Color color;
   final Widget child;
   final VoidCallback onPressed;
+
   @override
   _RegisterPageState createState() => _RegisterPageState();
 }
@@ -37,6 +44,7 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage>
     with TickerProviderStateMixin {
   AnimationController _controller;
+
   /* ********************* Variables **************************** */
   bool isRetryed = false;
   File _imageFile;
@@ -105,13 +113,11 @@ class _RegisterPageState extends State<RegisterPage>
         () {
           if (_start < 1) {
             timer.cancel();
-
             setState(() {
               timeTosend = false;
               isTimeToSee = true;
               isLoading = false;
             });
-
             getImg(context);
           } else {
             setState(() {
@@ -129,26 +135,34 @@ class _RegisterPageState extends State<RegisterPage>
       "image": await MultipartFile.fromFile(
         imageFile.path,
       ),
-      "username": name,
+//      "username": name,
     });
-
+    setState(() {
+      isLoading = false;
+      color = Colors.blue;
+    });
     try {
+      constant.progressHub("Processing ... ", context);
       Dio dio = new Dio();
-      dio.post(
+      dio
+          .post(
         "$baseUrl/register",
         data: data,
-        onSendProgress: (int sent, int total) {
-          print("on progress : $sent $total");
-        },
-      ).then((response) {
+        options: Options(
+          headers: {"username": name},
+        ),
+      )
+          .then((response) {
+        print("this is response Dio ==> $response");
+        print("This is status ==> ${response.data['status']}");
         if (response.statusCode == 200) {
           constant.closeDialog(context);
           setState(() {
             isLoading = false;
 //          color = Colors.red;
           });
-          if (response.data.status == false) {
-            ErrorDialog("${response.data.message}", "Error", context);
+          if (response.data['status'] == false) {
+            ErrorDialog("${response.data['message']}", "Error", context);
             setState(() {
               color = Colors.red;
             });
@@ -159,14 +173,14 @@ class _RegisterPageState extends State<RegisterPage>
             constant.succesDialog(
                 "Registration successful , please try to login", "", context);
           }
-          print("STATUS : ${response.data.status}");
-          print('200 RESPONSE : ${response.data}');
+          print("STATUS : ${response.data['status']}");
+          print('200 RESPONSE : ${response.data['status']}');
         } else {
           setState(() {
             color = Colors.red;
           });
           ErrorDialog("Processing Error please retry", "Error", context);
-          print("OTHER  response : ${response.data}");
+          print("OTHER  response : ${json.decode(response.data)['status']}");
           constant.closeDialog(context);
         }
       }).catchError((error) {
@@ -187,80 +201,81 @@ class _RegisterPageState extends State<RegisterPage>
     }
   }
 
-  // Send user data to api.
-//  upload(context, File imageFile) async {
-//    // open a bytestream
-//    var stream =
-//        new http.ByteStream(DelegatingStream.typed(imageFile.openRead()));
-//    // get file length
-//    var length = await imageFile.length();
-//
-//    // string to uri
-//    var uri = Uri.parse("$baseUrl/register");
-//
-//    // create multipart request
-//    var request = new http.MultipartRequest("POST", uri);
-//    // multipart that takes file
-//    var multipartFile = new http.MultipartFile('image', stream, length,
-//        filename: basename(imageFile.path));
-//    // add file to multipart
-//    request.files.add(multipartFile);
-//    var data = {"username": name};
-//    // request.fields.addAll(data);
-//    request.headers.addAll(data);
-//    request.fields['username'] = name;
-//    setState(() {
-//      isLoading = false;
-//      color = Colors.blue;
-//    });
-//    // send
-//    try {
-//      constant.progressHub("Processing ... ", context);
-//      var response = await request.send();
-//      if (response.statusCode == 200) {
-//        constant.closeDialog(context);
-//        setState(() {
-//          isLoading = false;
-////          color = Colors.red;
-//        });
-//        response.stream.transform(utf8.decoder).listen((value) {
-//          bool status = json.decode(value)['status'];
-//          if (status == false) {
-//            ErrorDialog("${json.decode(value)['message']}", "Error", context);
-//            setState(() {
-//              color = Colors.red;
-//            });
-//          } else {
-//            setState(() {
-//              color = Colors.orange;
-//            });
-//            constant.succesDialog(
-//                "Registration successful , please try to login", "", context);
-//          }
-//          print("STATUS : ${status}");
-//          print('200 RESPONSE : $value');
-//        });
-//      } else {
-//        setState(() {
+//   Send user data to api.
+  upload(context, File imageFile) async {
+    // open a bytestream
+    var stream =
+        new http.ByteStream(DelegatingStream.typed(imageFile.openRead()));
+    // get file length
+    var length = await imageFile.length();
+
+    // string to uri
+    var uri = Uri.parse("$baseUrl/register");
+
+    // create multipart request
+    var request = new http.MultipartRequest("POST", uri);
+    // multipart that takes file
+    var multipartFile = new http.MultipartFile('image', stream, length,
+        filename: basename(imageFile.path));
+    // add file to multipart
+    request.files.add(multipartFile);
+
+    var data = {"username": name};
+    // request.fields.addAll(data);
+    request.headers.addAll(data);
+    request.fields['username'] = name;
+    setState(() {
+      isLoading = false;
+      color = Colors.blue;
+    });
+    // send
+    try {
+      constant.progressHub("Processing ... ", context);
+      var response = await request.send();
+      if (response.statusCode == 200) {
+        constant.closeDialog(context);
+        setState(() {
+          isLoading = false;
 //          color = Colors.red;
-//        });
-//        ErrorDialog("Processing Error please retry", "Error", context);
-//        print("OTHER  response : ${response}");
-//        response.stream.transform(utf8.decoder).listen((value) {
-//          print('OTHER RESPONSE : $value');
-//          constant.closeDialog(context);
-//        });
-//      }
-//    } catch (e) {
-//      setState(() {
-//        color = Colors.red;
-//      });
-//      print('ERROR RESPONSE : $e');
-//      ErrorDialog("${e.toString()}", "Error", context);
-//    } finally {
-//      constant.closeDialog(context);
-//    }
-//  }
+        });
+        response.stream.transform(utf8.decoder).listen((value) {
+          bool status = json.decode(value)['status'];
+          if (status == false) {
+            ErrorDialog("${json.decode(value)['message']}", "Error", context);
+            setState(() {
+              color = Colors.red;
+            });
+          } else {
+            setState(() {
+              color = Colors.orange;
+            });
+            constant.succesDialog(
+                "Registration successful , please try to login", "", context);
+          }
+          print("STATUS : ${status}");
+          print('200 RESPONSE : $value');
+        });
+      } else {
+        setState(() {
+          color = Colors.red;
+        });
+        ErrorDialog("Processing Error please retry", "Error", context);
+        print("OTHER  response : ${response}");
+        response.stream.transform(utf8.decoder).listen((value) {
+          print('OTHER RESPONSE : $value');
+          constant.closeDialog(context);
+        });
+      }
+    } catch (e) {
+      setState(() {
+        color = Colors.red;
+      });
+      print('ERROR RESPONSE : $e');
+      ErrorDialog("${e.toString()}", "Error", context);
+    } finally {
+      constant.closeDialog(context);
+    }
+  }
 
   FocusNode myFocusNode = new FocusNode();
 
@@ -279,6 +294,7 @@ class _RegisterPageState extends State<RegisterPage>
         _imageFile = File(path);
         showCapturedPhoto = true;
         uploadImage(_imageFile, name, context);
+//        upload(context, _imageFile);
       });
     } catch (e) {
       print(e);
@@ -346,6 +362,7 @@ class _RegisterPageState extends State<RegisterPage>
   @override
   void dispose() {
     _cameraController?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
